@@ -34,7 +34,7 @@ function getLocalFontsPlugin(): Plugin {
 describe("vinext:local-fonts plugin", () => {
   // Next.js also transforms fonts inside dependencies:
   // https://github.com/vercel/next.js/blob/canary/test/e2e/app-dir/next-font/next-font.test.ts
-  it.each(["?v=abc123", "?v=abc123&other=1"])(
+  it.each(["?v=abc123", "?v=abc123&other=1", "#fragment"])(
     "transforms dependency font paths with a dev query suffix %s",
     (suffix) => {
       const plugin = getLocalFontsPlugin();
@@ -45,10 +45,24 @@ describe("vinext:local-fonts plugin", () => {
       expect(id + suffix).toMatch(hook.filter.id.include);
       const baseline = transform.call(plugin, code, id);
       const result = transform.call(plugin, code, id + suffix);
-      expect(result?.code).toBe(baseline.code);
+      expect(result).not.toBeNull();
+      expect(result.code).toBe(baseline.code);
       expectImported(result.code, "./font.woff2");
     },
   );
+
+  it("still skips virtual modules, shims, and non-script files with query strings", () => {
+    const plugin = getLocalFontsPlugin();
+    const transform = unwrapHook(plugin.transform);
+    const code = `import localFont from 'next/font/local';\nconst font = localFont({ src: './font.woff2' });`;
+    for (const id of [
+      "\0virtual:fonts.js?v=abc123",
+      `${FONT_LOCAL_SHIM_PATH}?v=abc123`,
+      "/app/styles.css?v=module.js",
+    ]) {
+      expect(transform.call(plugin, code, id)).toBeNull();
+    }
+  });
 
   it("exists in the plugin array", () => {
     const plugin = getLocalFontsPlugin();

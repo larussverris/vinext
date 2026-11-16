@@ -590,7 +590,7 @@ describe("next/font/google shim", () => {
 // ── Plugin tests ──────────────────────────────────────────────
 
 describe("vinext:google-fonts plugin", () => {
-  it.each(["?v=abc123", "?v=abc123&other=1"])(
+  it.each(["?v=abc123", "?v=abc123&other=1", "#fragment"])(
     "rewrites dependency font imports with a dev query suffix %s",
     async (suffix) => {
       const plugin = getGoogleFontsPlugin();
@@ -602,10 +602,28 @@ describe("vinext:google-fonts plugin", () => {
       expect(id + suffix).toMatch(hook.filter.id.include);
       const baseline = await transform.call(plugin, code, id);
       const result = await transform.call(plugin, code, id + suffix);
-      expect(result?.code).toBe(baseline.code);
+      expect(result).not.toBeNull();
+      expect(result.code).toBe(baseline.code);
       expect(result.code).toContain("virtual:vinext-google-fonts?");
     },
   );
+
+  it("still skips virtual modules, shims, and non-script files with query strings", async () => {
+    const plugin = getGoogleFontsPlugin();
+    initPlugin(plugin, { command: "serve" });
+    const transform = unwrapHook(plugin.transform);
+    const code = `import { Inter } from 'next/font/google';`;
+    const shim = toSlash(
+      path.resolve(import.meta.dirname, "../packages/vinext/src/shims/font-google.ts"),
+    );
+    for (const id of [
+      "\0virtual:fonts.js?v=abc123",
+      `${shim}?v=abc123`,
+      "/app/styles.css?v=module.js",
+    ]) {
+      expect(await transform.call(plugin, code, id)).toBeNull();
+    }
+  });
 
   it("exists in the plugin array", () => {
     const plugin = getGoogleFontsPlugin();

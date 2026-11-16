@@ -29,6 +29,7 @@ import { parseProgram } from "./ast-utils.js";
 import path, { toSlash } from "pathslash";
 import fs from "node:fs";
 import { escapeRegExp } from "../utils/regex.js";
+import { stripViteModuleQuery } from "../utils/path.js";
 import { lastSignificantChar } from "../utils/has-trailing-comma.js";
 import MagicString from "magic-string";
 import { magicStringTransformResult } from "./transform-result.js";
@@ -778,14 +779,14 @@ export function createGoogleFontsPlugin(fontGoogleShimPath: string, shimsDir: st
       // import from next/font/google.
       filter: {
         id: {
-          include: /\.(tsx?|jsx?|mjs)(?:\?.*)?$/,
+          include: /\.(tsx?|jsx?|mjs)(?:[?#].*)?$/,
         },
         code: "next/font/google",
       },
       async handler(code, id) {
         // Defensive guard — duplicates filter logic
         if (id.startsWith("\0")) return null;
-        const filename = id.replace(/\?.*$/, "");
+        const filename = stripViteModuleQuery(id);
         if (!/\.(tsx?|jsx?|mjs)$/.test(filename)) return null;
         if (!code.includes("next/font/google")) return null;
         if (id.startsWith(shimsDir)) return null;
@@ -1214,14 +1215,14 @@ export function createLocalFontsPlugin(shimsDir: string): Plugin {
       // default-import check below keep this from touching unrelated modules.
       filter: {
         id: {
-          include: /\.(tsx?|jsx?|mjs)(?:\?.*)?$/,
+          include: /\.(tsx?|jsx?|mjs)(?:[?#].*)?$/,
         },
         code: "next/font/local",
       },
       handler(code, id) {
         // Defensive guards — duplicate filter logic
         if (id.startsWith("\0")) return null;
-        const filename = id.replace(/\?.*$/, "");
+        const filename = stripViteModuleQuery(id);
         if (!/\.(tsx?|jsx?|mjs)$/.test(filename)) return null;
         if (!code.includes("next/font/local")) return null;
         // Skip vinext's own shim files — the font-local shim contains example
